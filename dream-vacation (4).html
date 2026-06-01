@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>✈️ My Dream Vacation</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   ROOT & RESET
+   ═══════════════════════════════════════════════ */
+:root {
+  /* Fonts */
+  --f-title: 'Pacifico', cursive;
+  --f-head:  'Baloo 2', cursive;
+  --f-body:  'Nunito', sans-serif;
+
+  /* Time-of-day theme colours (applied via JS) */
+  --sky-a: #FFF9C4;
+  --sky-b: #B3E5FC;
+  --accent: #F59E0B;
+  --accent2: #0EA5E9;
+  --text-main: #1e293b;
+
+  /* UI */
+  --radius: 20px;
+  --radius-sm: 12px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.12);
+  --shadow-sm: 0 4px 16px rgba(0,0,0,0.10);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--f-body);
+  background: linear-gradient(160deg, var(--sky-a) 0%, var(--sky-b) 100%);
+  color: var(--text-main);
+  transition: background 1.4s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══════════════════════════════════════════════
+   SCREENS
+   ═══════════════════════════════════════════════ */
+.screen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  padding: env(safe-area-inset-top, 16px) 20px 20px;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  opacity: 0; pointer-events: none;
+  transition: opacity .45s ease, transform .45s cubic-bezier(.4,0,.2,1);
+  transform: translateY(24px);
+  z-index: 1;
+}
+.screen.active {
+  opacity: 1; pointer-events: all; transform: translateY(0);
+}
+.screen.exit-up { opacity: 0; transform: translateY(-24px); pointer-events: none; }
+
+/* ═══════════════════════════════════════════════
+   BOARDING-PASS PROGRESS BAR
+   ═══════════════════════════════════════════════ */
+#progress-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 2px solid rgba(255,255,255,0.6);
+  padding: 10px 14px 8px;
+  display: none;
+  flex-direction: column; gap: 4px;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+}
+.pb-top {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pb-name {
+  font-family: var(--f-head); font-size: 0.78rem; font-weight: 700;
+  color: #64748b; letter-spacing: 1px; text-transform: uppercase;
+}
+.pb-country {
+  font-family: var(--f-head); font-size: 0.78rem; font-weight: 800;
+  color: var(--accent); letter-spacing: 1px;
+}
+.pb-stages {
+  display: flex; gap: 5px; align-items: center; justify-content: center;
+}
+.pb-stage {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  flex: 1; min-width: 0; position: relative;
+}
+.pb-stage::after {
+  content: ''; position: absolute;
+  top: 18px; left: calc(50% + 14px); right: calc(-50% + 14px);
+  height: 3px; background: #e2e8f0; border-radius: 2px;
+  z-index: 0;
+}
+.pb-stage:last-child::after { display: none; }
+.pb-stage-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #e2e8f0; border: 3px solid #cbd5e1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; position: relative; z-index: 1;
+  transition: all .4s cubic-bezier(.36,2,.5,.9);
+}
+.pb-stage.done .pb-stage-icon {
+  background: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 14px rgba(245,158,11,0.45);
+  transform: scale(1.12);
+}
+.pb-stage.done::after { background: var(--accent); }
+.pb-stage.active .pb-stage-icon {
+  background: white; border-color: var(--accent2);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.25);
+  animation: stageGlow 1.6s ease-in-out infinite;
+}
+@keyframes stageGlow {
+  0%,100%{box-shadow:0 0 0 3px rgba(14,165,233,0.2);}
+  50%{box-shadow:0 0 0 6px rgba(14,165,233,0.35);}
+}
+.pb-stage-label {
+  font-size: 0.48rem; font-weight: 800; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  text-align: center; line-height: 1; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 42px;
+}
+.pb-stage.done .pb-stage-label { color: var(--accent); }
+.pb-stage.active .pb-stage-label { color: var(--accent2); }
+
+/* ═══════════════════════════════════════════════
+   SHARED CARD COMPONENT
+   ═══════════════════════════════════════════════ */
+.card {
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius);
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  width: 100%; max-width: 640px;
+}
+
+/* ═══════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; min-height: 60px; padding: 0 28px;
+  border: none; border-radius: 50px; cursor: pointer;
+  font-family: var(--f-head); font-weight: 700; font-size: 1.1rem;
+  letter-spacing: 0.3px;
+  transition: transform .12s, box-shadow .12s, filter .15s;
+  position: relative; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.btn::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 55%);
+  pointer-events: none;
+}
+.btn:active { transform: scale(0.94) translateY(2px); }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: white; box-shadow: 0 6px 0 #c2410c, 0 10px 24px rgba(249,115,22,.35);
+}
+.btn-primary:not(:disabled):hover { filter: brightness(1.07); box-shadow: 0 9px 0 #c2410c; }
+.btn-primary:active { box-shadow: 0 2px 0 #c2410c !important; }
+.btn-secondary {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: white; box-shadow: 0 6px 0 #4338ca, 0 10px 24px rgba(99,102,241,.3);
+}
+.btn-secondary:not(:disabled):hover { filter: brightness(1.07); }
+.btn-secondary:active { box-shadow: 0 2px 0 #4338ca !important; }
+.btn-ghost {
+  background: rgba(255,255,255,0.7); color: var(--text-main);
+  border: 2.5px solid rgba(0,0,0,0.1);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.07);
+}
+.btn-ghost:active { box-shadow: 0 1px 0 rgba(0,0,0,0.07) !important; }
+.btn-block { width: 100%; border-radius: var(--radius-sm); }
+
+/* ═══════════════════════════════════════════════
+   SCREEN 1 — WELCOME
+   ═══════════════════════════════════════════════ */
+#s-welcome {
+  justify-content: center; gap: 20px; padding-top: 20px;
+}
+.welcome-hero {
+  text-align: center; padding: 10px 0 4px;
+}
+.welcome-plane {
+  font-size: 3.5rem; display: block; margin-bottom: 6px;
+  animation: planeBob 2.4s ease-in-out infinite;
+}
+@keyframes planeBob {
+  0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-12px) rotate(3deg)}
+}
+.welcome-title {
+  font-family: var(--f-title); font-size: clamp(2rem,8vw,3.4rem);
+  color: #f97316; text-shadow: 0 3px 0 rgba(249,115,22,.2);
+  line-height: 1.1;
+}
+.welcome-sub {
+  font-family: var(--f-head); font-size: 1rem; font-weight: 600;
+  color: #64748b; margin-top: 6px; letter-spacing: 0.5px;
+}
+
+.welcome-message {
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 28px;
+  max-width: 460px; width: 100%;
+  text-align: center;
+}
+.welcome-msg-text {
+  font-family: var(--f-head); font-size: 1.15rem; font-weight: 800;
+  color: #f97316; line-height: 1.4; margin-bottom: 6px;
+}
+.welcome-msg-sub {
+  font-family: var(--f-body); font-size: 0.9rem; font-weight: 700;
+  color: #64748b;
+}
+
+.name-input-wrap { position: relative; width: 100%; }
+.name-input {
+  width: 100%; height: 64px; padding: 0 20px;
+  border: 3px solid #e2e8f0; border-radius: var(--radius-sm);
+  font-family: var(--f-head); font-size: 1.2rem; font-weight: 700;
+  color: var(--text-main); background: white;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none;
+}
+.name-input:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 4px rgba(245,158,11,0.18);
+}
+.name-input::placeholder { color: #cbd5e1; }
+
+/* ═══════════════════════════════════════════════
+   SCREEN 2 — COUNTRY SELECTION
+   ═══════════════════════════════════════════════ */
+#s-country { gap: 16px; padding-top: 60px; }
+.section-title {
+  font-family: var(--f-head); font-size: 1.5rem; font-weight: 800;
+  color: var(--text-main); text-align: center; letter-spacing: -0.3px;
+}
+.section-sub {
+  font-family: var(--f-body); font-size: 0.92rem; font-weight: 600;
+  color: #64748b; text-align: center; margin-top: -10px;
+}
+/* Single horizontal row of 4 PNG cards */
+.country-grid {
+  display: flex; flex-direction: row;
+  gap: 10px; width: 100%; max-width: 720px;
+  justify-content: center; align-items: flex-end;
+  padding: 0 8px;
+}
+.country-card {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  cursor: pointer;
+  transition: transform .18s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  background: transparent; border: none;
+  /* no box, no clip */
+}
+.country-card:active { transform: scale(0.93); }
+.country-card.selected .country-img-wrap img {
+  filter: drop-shadow(0 0 10px rgba(245,158,11,0.8));
+  transform: translateY(-6px) scale(1.06);
+}
+.country-card.selected .country-select-btn {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: white;
+  box-shadow: 0 4px 0 #c2410c;
+}
+/* PNG image — no box, no crop, full height */
+.country-img-wrap {
+  width: 100%; display: flex; justify-content: center; align-items: flex-end;
+  /* tall enough for portrait PNGs */
+  min-height: 120px;
+}
+.country-img-wrap img {
+  width: 100%; max-width: 160px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  transition: transform .2s, filter .2s;
+  /* emoji fallback hidden */
+}
+.country-name {
+  font-family: var(--f-head); font-size: 0.95rem; font-weight: 800;
+  color: var(--text-main); text-align: center;
+  margin: 8px 0 4px; display: block;
+}
+.country-select-btn {
+  width: 100%;
+  padding: 9px 4px; border: none; border-radius: 50px;
+  font-family: var(--f-head); font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+  background: rgba(255,255,255,0.7); color: #64748b;
+  border: 2px solid rgba(0,0,0,0.08);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.07);
+}
+
+/* ═══════════════════════════════════════════════
+   SCREEN 3A — CLOCK QUIZ
+   ═══════════════════════════════════════════════ */
+#s-quiz { gap: 10px; padding-top: 82px; padding-bottom: 16px; justify-content: flex-start; }
+
+.stage-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.8); border-radius: 50px;
+  padding: 5px 14px; border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--f-head); font-size: 0.82rem; font-weight: 800;
+  color: var(--text-main); letter-spacing: 0.4px;
+  align-self: center;
+}
+.stage-badge-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); animation: dotPulse 1.4s ease-in-out infinite;
+}
+@keyframes dotPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:.6} }
+
+.quiz-prompt {
+  font-family: var(--f-head); font-size: 1rem; font-weight: 800;
+  color: var(--text-main); text-align: center;
+  line-height: 1.25; max-width: 480px; align-self: center;
+}
+
+/* Clock display */
+.clock-wrap {
+  align-self: center; position: relative;
+  width: min(180px, 38vw); height: min(180px, 38vw);
+  flex-shrink: 0;
+}
+.clock-card {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: white;
+  border: 5px solid rgba(255,255,255,0.9);
+  box-shadow: 0 8px 0 rgba(0,0,0,0.1), var(--shadow);
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: transform .2s;
+}
+.clock-card img {
+  width: 100%; height: 100%; object-fit: contain;
+  position: absolute; inset: 0;
+}
+
+/* SVG Analogue Clock drawn in JS */
+#clock-svg {
+  width: 100%; height: 100%;
+}
+
+.clock-card.shake {
+  animation: clockShake 0.55s cubic-bezier(.36,.07,.19,.97);
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 6px rgba(239,68,68,0.25), var(--shadow) !important;
+}
+@keyframes clockShake {
+  0%,100%{transform:rotate(0)} 15%{transform:rotate(-7deg)} 30%{transform:rotate(7deg)}
+  45%{transform:rotate(-5deg)} 60%{transform:rotate(5deg)} 75%{transform:rotate(-3deg)}
+}
+
+/* Answer options */
+.time-options {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; width: 100%; max-width: 480px; align-self: center;
+}
+.time-btn {
+  min-height: 58px; border-radius: var(--radius-sm);
+  border: 3px solid #cbd5e1;
+  background: white;
+  font-family: var(--f-head); font-size: 1.35rem; font-weight: 800;
+  color: #1e293b; cursor: pointer;
+  box-shadow: 0 5px 0 #94a3b8;
+  transition: all .14s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.time-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #94a3b8; }
+.time-btn.correct {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  border-color: #15803d !important; color: white !important;
+  box-shadow: 0 5px 0 #14532d !important;
+  animation: correctPop .4s cubic-bezier(.36,2,.5,.9);
+}
+.time-btn.wrong {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  border-color: #991b1b !important; color: white !important;
+  animation: wrongWiggle .3s ease;
+}
+@keyframes correctPop { 0%{transform:scale(1)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
+@keyframes wrongWiggle { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+/* Success burst */
+.success-burst {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s;
+}
+.success-burst.visible { opacity: 1; }
+.burst-icon {
+  font-size: 5rem;
+  opacity: 0;
+}
+.success-burst.visible .burst-icon {
+  animation: burstInOut 1s cubic-bezier(.36,2,.5,.9) forwards;
+}
+@keyframes burstInOut {
+  0%  {opacity:0;transform:scale(0.3) rotate(-20deg)}
+  35% {opacity:1;transform:scale(1.15) rotate(8deg)}
+  65% {opacity:1;transform:scale(1) rotate(0)}
+  100%{opacity:0;transform:scale(0.7)}
+}
+
+/* ═══════════════════════════════════════════════
+   SCREEN 3B — ACTIVITY SELECTION
+   ═══════════════════════════════════════════════ */
+#s-activity { gap: 12px; padding-top: 80px; padding-bottom: 20px; }
+
+/* 3-column grid of PNG cards */
+.activity-cards {
+  display: flex; flex-direction: row;
+  gap: 10px; width: 100%; max-width: 640px;
+  align-self: center; justify-content: center;
+  align-items: flex-end; padding: 0 8px;
+}
+.activity-card {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  cursor: pointer; background: transparent; border: none;
+  transition: transform .15s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.activity-card:active { transform: scale(0.93); }
+
+/* PNG image — no box, full size */
+.act-img-wrap {
+  width: 100%; display: flex; justify-content: center; align-items: flex-end;
+  min-height: 120px;
+}
+.act-img-wrap img {
+  width: 100%; max-width: 180px;
+  height: auto; object-fit: contain; display: block;
+  transition: transform .2s, filter .2s;
+}
+.activity-card.selected .act-img-wrap img {
+  filter: drop-shadow(0 0 10px rgba(245,158,11,0.8));
+  transform: translateY(-5px) scale(1.06);
+}
+
+.act-name {
+  font-family: var(--f-head); font-size: 0.88rem; font-weight: 800;
+  color: var(--text-main); text-align: center;
+  margin: 8px 0 4px; display: block; line-height: 1.2;
+}
+.act-select-btn {
+  width: 100%;
+  padding: 8px 4px; border: none; border-radius: 50px;
+  font-family: var(--f-head); font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+  background: rgba(255,255,255,0.7); color: #64748b;
+  border: 2px solid rgba(0,0,0,0.08);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.07);
+}
+.activity-card.selected .act-select-btn {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: white; box-shadow: 0 3px 0 #c2410c;
+}
+
+/* ═══════════════════════════════════════════════
+   SCREEN 4 — FINAL POSTCARD
+   ═══════════════════════════════════════════════ */
+#s-postcard { gap: 20px; padding-top: 24px; padding-bottom: 40px; }
+
+.postcard-wrap {
+  width: 100%; max-width: 640px; align-self: center;
+}
+.postcard {
+  background: #fffbf0;
+  border-radius: 28px;
+  border: 5px solid white;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 2px rgba(245,158,11,0.2);
+  overflow: hidden;
+  position: relative;
+}
+/* Decorative postcard stamp corner */
+.postcard::before {
+  content: '';
+  position: absolute; top: 18px; right: 18px;
+  width: 52px; height: 64px;
+  background: linear-gradient(135deg, #fde68a, #fcd34d);
+  border-radius: 4px;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 2;
+}
+.postcard::after {
+  content: '✈️';
+  position: absolute; top: 27px; right: 25px;
+  font-size: 1.8rem; z-index: 3;
+}
+
+.postcard-header {
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  padding: 28px 90px 22px 24px;
+  position: relative;
+}
+.postcard-greeting {
+  font-family: var(--f-head); font-size: 0.78rem; font-weight: 800;
+  color: rgba(255,255,255,0.75); letter-spacing: 3px; text-transform: uppercase;
+  display: block; margin-bottom: 6px;
+}
+.postcard-name {
+  font-family: var(--f-title); font-size: clamp(1.6rem,5vw,2.4rem);
+  color: white; line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.postcard-country {
+  font-family: var(--f-head); font-size: 1rem; font-weight: 700;
+  color: rgba(255,255,255,0.9); margin-top: 4px;
+}
+
+/* Decorative dots / pattern on header */
+.postcard-header-deco {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 14px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 6px, transparent 6px, transparent 14px);
+}
+
+.postcard-body { padding: 20px; }
+.itinerary-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 0; border-bottom: 1.5px dashed #fde68a;
+  animation: rowSlideIn .4s ease both;
+}
+.itinerary-row:last-child { border-bottom: none; }
+@keyframes rowSlideIn { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+
+.itinerary-clock {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  background: white; border: 3px solid #fde68a;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative;
+}
+.itinerary-clock svg { width: 100%; height: 100%; }
+
+.itinerary-time {
+  font-family: var(--f-head); font-size: 0.92rem; font-weight: 800;
+  color: #f97316; min-width: 42px;
+}
+.itinerary-sep {
+  font-size: 1rem; color: #d1d5db; flex-shrink: 0;
+}
+.itinerary-act-icon {
+  width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+  background: linear-gradient(135deg, #fde68a, #fed7aa);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; overflow: hidden; position: relative;
+  border: 2.5px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.itinerary-act-icon img {
+  width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+}
+.itinerary-act-info { flex: 1; min-width: 0; }
+.itinerary-act-name {
+  font-family: var(--f-head); font-size: 0.92rem; font-weight: 800;
+  color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.itinerary-act-desc {
+  font-size: 0.72rem; font-weight: 600; color: #94a3b8;
+  line-height: 1.3; margin-top: 1px;
+}
+
+.postcard-footer {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  padding: 18px 20px; text-align: center;
+}
+.postcard-cta {
+  font-family: var(--f-head); font-size: 1rem; font-weight: 800;
+  color: #92400e; line-height: 1.4;
+}
+
+/* Play again */
+.play-again-btn {
+  align-self: center;
+}
+
+/* ═══════════════════════════════════════════════
+   CONFETTI
+   ═══════════════════════════════════════════════ */
+.confetti-piece {
+  position: fixed; pointer-events: none; z-index: 1000;
+  border-radius: 3px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%  { opacity:1; transform:translateY(-10px) rotate(0deg); }
+  100%{ opacity:0; transform:translateY(100vh) rotate(var(--spin)) translateX(var(--drift)); }
+}
+
+/* ═══════════════════════════════════════════════
+   FLOATING DECORATIONS
+   ═══════════════════════════════════════════════ */
+.deco-float {
+  position: fixed; font-size: 1.8rem; opacity: 0.1;
+  pointer-events: none; z-index: 0;
+  animation: decoFloat ease-in-out infinite;
+}
+@keyframes decoFloat {
+  0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-22px) rotate(5deg)}
+}
+
+/* ═══════════════════════════════════════════════
+   UTILITY
+   ═══════════════════════════════════════════════ */
+.mt-auto { margin-top: auto; }
+.text-center { text-align: center; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.row { display: flex; }
+
+/* ─── scroll gutter for inner screens ─── */
+#s-country, #s-quiz, #s-activity, #s-postcard {
+  scroll-behavior: smooth;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ FLOATING DECO ═══ -->
+<div class="deco-float" style="left:4%;top:20%;animation-duration:7s;animation-delay:0s">🌴</div>
+<div class="deco-float" style="left:88%;top:15%;animation-duration:9s;animation-delay:-3s">⭐</div>
+<div class="deco-float" style="left:6%;top:68%;animation-duration:8s;animation-delay:-5s">🌊</div>
+<div class="deco-float" style="left:90%;top:72%;animation-duration:6s;animation-delay:-1s">🗺️</div>
+<div class="deco-float" style="left:50%;top:88%;animation-duration:10s;animation-delay:-4s">🧳</div>
+
+<!-- ═══════════════════════════════════
+     BOARDING PASS PROGRESS BAR
+     ═══════════════════════════════════ -->
+<div id="progress-bar">
+  <div class="pb-top">
+    <span class="pb-name" id="pb-name-label">Traveller</span>
+    <span class="pb-country" id="pb-country-label">✈️ My Dream Vacation</span>
+  </div>
+  <div class="pb-stages" id="pb-stages"></div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 1 — WELCOME
+     ═══════════════════════════════════ -->
+<div class="screen active" id="s-welcome">
+  <div class="welcome-hero">
+    <span class="welcome-plane">✈️</span>
+    <div class="welcome-title">My Dream<br>Vacation</div>
+    <div class="welcome-sub">Plan your perfect day around the world!</div>
+  </div>
+
+  <div class="welcome-message">
+    <p class="welcome-msg-text">We are pleased to have you here, dear young traveller! 🌍</p>
+    <p class="welcome-msg-sub">Enter your name below and let the adventure begin!</p>
+  </div>
+
+  <div class="card" style="max-width:480px">
+    <label for="student-name"
+           style="font-family:var(--f-head);font-size:0.88rem;font-weight:800;color:#64748b;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:10px">
+      ✏️ Your Name
+    </label>
+    <input id="student-name" class="name-input" type="text"
+           placeholder="Type your name here…" autocomplete="off" autocorrect="off"
+           spellcheck="false" maxlength="32">
+  </div>
+
+  <button class="btn btn-primary" id="btn-begin" style="min-width:220px" disabled>
+    Begin Journey 🚀
+  </button>
+  <div style="height:16px"></div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 2 — COUNTRY SELECTION
+     ═══════════════════════════════════ -->
+<div class="screen" id="s-country">
+  <div class="section-title">Choose Your Destination</div>
+  <div class="section-sub">Where will you travel today? 🌍</div>
+
+  <div class="country-grid" id="country-grid"></div>
+
+  <button class="btn btn-primary" id="btn-go-quiz" style="min-width:220px" disabled>
+    Start Adventure! ✈️
+  </button>
+  <div style="height:16px"></div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 3A — CLOCK QUIZ
+     ═══════════════════════════════════ -->
+<div class="screen" id="s-quiz">
+  <div class="stage-badge">
+    <div class="stage-badge-dot"></div>
+    <span id="quiz-stage-label">Stage 1 of 7 — Morning</span>
+  </div>
+
+  <div class="quiz-prompt" id="quiz-prompt">
+    What time does the clock show? 🕐
+  </div>
+
+  <div class="clock-wrap">
+    <div class="clock-card" id="clock-card">
+      <!-- SVG clock rendered by JS -->
+      <svg id="clock-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"></svg>
+      <!-- Real image fallback (if images/ folder provided) -->
+      <img id="clock-img" src="" alt="Clock"
+           style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none"
+           onerror="this.style.display='none'">
+    </div>
+  </div>
+
+  <div class="time-options" id="time-options"></div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 3B — ACTIVITY SELECTION
+     ═══════════════════════════════════ -->
+<div class="screen" id="s-activity">
+  <div class="stage-badge">
+    <div class="stage-badge-dot"></div>
+    <span id="act-stage-label">Stage 1 — Breakfast</span>
+  </div>
+  <div class="quiz-prompt" id="act-prompt">
+    Pick your breakfast! 🍳
+  </div>
+  <div class="activity-cards" id="activity-cards"></div>
+  <button class="btn btn-secondary" id="btn-confirm-act" style="min-width:220px" disabled>
+    Confirm Choice ✅
+  </button>
+  <div style="height:16px"></div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 4 — FINAL POSTCARD
+     ═══════════════════════════════════ -->
+<div class="screen" id="s-postcard">
+  <div class="postcard-wrap">
+    <div class="postcard" id="postcard">
+      <div class="postcard-header">
+        <span class="postcard-greeting">Travel Itinerary</span>
+        <div class="postcard-name" id="pc-name">My Adventure!</div>
+        <div class="postcard-country" id="pc-country">🌍 Destination</div>
+        <div class="postcard-header-deco"></div>
+      </div>
+      <div class="postcard-body" id="pc-itinerary"></div>
+      <div class="postcard-footer">
+        <div class="postcard-cta">
+          🎉 Amazing Journey! 📸 Take a screenshot now<br>to show your teacher!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary play-again-btn" onclick="resetGame()">
+    🔄 Play Again!
+  </button>
+  <div style="height:24px"></div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SUCCESS BURST (overlay)
+     ═══════════════════════════════════ -->
+<div class="success-burst hidden" id="success-burst">
+  <div class="burst-icon" id="burst-icon">✅</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════
+   GAME DATA
+   ══════════════════════════════════════════════════ */
+const COUNTRIES = [
+  { id: 'japan',     name: 'Japan',     flag: '🇯🇵', emoji: '⛩️',  img: 'https://github.com/nelsonsia27/TravelPlanG4/blob/main/12.png?raw=true' },
+  { id: 'uk',        name: 'UK',        flag: '🇬🇧', emoji: '🏰',  img: 'https://github.com/nelsonsia27/TravelPlanG4/blob/main/13.png?raw=true' },
+  { id: 'australia', name: 'Australia', flag: '🇦🇺', emoji: '🦘',  img: 'https://github.com/nelsonsia27/TravelPlanG4/blob/main/14.png?raw=true' },
+  { id: 'singapore', name: 'Singapore', flag: '🇸🇬', emoji: '🦁',  img: 'https://github.com/nelsonsia27/TravelPlanG4/blob/main/15.png?raw=true' },
+];
+
+const STAGES = [
+  {
+    id: 1, label: 'Breakfast', emoji: '🍳',
+    time: { h: 8, m: 0 }, timeStr: '8:00 AM',
+    skyA: '#FFF9C4', skyB: '#BAE6FD',
+    prompt: 'What time is breakfast? 🍳',
+    actPrompt: 'Choose your breakfast! 🍽️',
+    activities: [
+      { id:'pancake', name:'Pancake',         emoji:'🥞', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/25.png?raw=true', desc:'Fluffy pancakes with syrup and fresh fruit.' },
+      { id:'eggs',    name:'Eggs and Sausage',emoji:'🍳', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/26.png?raw=true', desc:'A classic plate of scrambled eggs and sausage.' },
+      { id:'cereal',  name:'Cereal',           emoji:'🥣', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/27.png?raw=true', desc:'A bowl of crunchy cereal with cold milk.' },
+    ]
+  },
+  {
+    id: 2, label: 'Outdoors', emoji: '🏃',
+    time: { h: 10, m: 30 }, timeStr: '10:30 AM',
+    skyA: '#FEF9C3', skyB: '#7DD3FC',
+    prompt: "It's time for outdoor fun! What time is it? 🌞",
+    actPrompt: 'Pick your morning activity! 🏕️',
+    activities: [
+      { id:'hike',  name:'Hike',          emoji:'🥾', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/16.png?raw=true', desc:'Trek through scenic trails and enjoy nature.' },
+      { id:'park',  name:'Walk in the Park',emoji:'🚶', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/17.png?raw=true', desc:'A relaxing stroll through a beautiful park.' },
+      { id:'swim',  name:'Swim',           emoji:'🏊', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/18.png?raw=true', desc:'Splash around in the crystal-clear pool.' },
+    ]
+  },
+  {
+    id: 3, label: 'Lunch', emoji: '🍜',
+    time: { h: 12, m: 30 }, timeStr: '12:30 PM',
+    skyA: '#FEF08A', skyB: '#7DD3FC',
+    prompt: 'Time for a midday meal! What time does the clock show? 🍜',
+    actPrompt: "What's for lunch today? 🍴",
+    activities: [
+      { id:'spaghetti', name:'Spaghetti',   emoji:'🍝', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/29.png?raw=true', desc:'Delicious spaghetti with tomato sauce.' },
+      { id:'ramen',     name:'Ramen',        emoji:'🍜', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/30.png?raw=true', desc:'A steaming bowl of Japanese ramen noodles.' },
+      { id:'pizza',     name:'Pizza',         emoji:'🍕', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/31.png?raw=true', desc:'A classic pizza with your favourite toppings.' },
+    ]
+  },
+  {
+    id: 4, label: 'Activities', emoji: '🎒',
+    time: { h: 14, m: 0 }, timeStr: '2:00 PM',
+    skyA: '#FCD34D', skyB: '#38BDF8',
+    prompt: 'Afternoon adventure! Can you read the clock? 🎒',
+    actPrompt: 'Pick an afternoon activity! 🎨',
+    activities: [
+      { id:'bike',     name:'Ride a Bike',     emoji:'🚴', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/19.png?raw=true', desc:'Pedal through scenic parks and hidden alleys.' },
+      { id:'shopping', name:'Go Shopping',     emoji:'🛍️', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/20.png?raw=true', desc:'Browse colourful markets and find souvenirs.' },
+      { id:'museum',   name:'Visit the Museum',emoji:'🏛️', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/21.png?raw=true', desc:'Explore exhibits and learn local history.' },
+    ]
+  },
+  {
+    id: 5, label: 'Fun', emoji: '🎡',
+    time: { h: 16, m: 30 }, timeStr: '4:30 PM',
+    skyA: '#FDBA74', skyB: '#A5B4FC',
+    prompt: 'Late afternoon fun! What time does the clock say? 🎡',
+    actPrompt: 'What will you do now? 🎠',
+    activities: [
+      { id:'show',  name:'Watch a Show',    emoji:'🎭', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/22.png?raw=true', desc:'Enjoy an amazing live performance or show.' },
+      { id:'theme', name:'Go to a Theme Park',emoji:'🎢', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/23.png?raw=true', desc:'Ride thrilling attractions at a theme park.' },
+      { id:'stargaze2', name:'Stargazing',  emoji:'🔭', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/24.png?raw=true', desc:'Spot stars and planets in the evening sky.' },
+    ]
+  },
+  {
+    id: 6, label: 'Dinner', emoji: '🍽️',
+    time: { h: 19, m: 0 }, timeStr: '7:00 PM',
+    skyA: '#FB923C', skyB: '#818CF8',
+    prompt: 'Dinner time! What time does the clock show? 🌆',
+    actPrompt: "Choose tonight's dinner! 🍽️",
+    activities: [
+      { id:'fishnchips', name:'Fish and Chips', emoji:'🐟', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/32.png?raw=true', desc:'Crispy battered fish with golden chips.' },
+      { id:'hotpot',     name:'Hotpot',          emoji:'🍲', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/33.png?raw=true', desc:'A bubbling pot of broth with fresh ingredients.' },
+      { id:'hamburger',  name:'Hamburger',        emoji:'🍔', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/34.png?raw=true', desc:'A juicy beef burger with all the toppings.' },
+    ]
+  },
+  {
+    id: 7, label: 'Evening', emoji: '🌙',
+    time: { h: 21, m: 0 }, timeStr: '9:00 PM',
+    skyA: '#312E81', skyB: '#1E3A8A',
+    prompt: "It's evening! What time is it now? 🌙",
+    actPrompt: 'How will you end your perfect day? ✨',
+    activities: [
+      { id:'eve_stargaze', name:'Stargazing',      emoji:'🔭', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/35.png?raw=true', desc:'Lie back and spot constellations in the night sky.' },
+      { id:'eve_show',     name:'Watch a Show',    emoji:'🎭', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/36.png?raw=true', desc:'Catch a final evening performance or movie.' },
+      { id:'eve_shop',     name:'Go Shopping',     emoji:'🛍️', img:'https://github.com/nelsonsia27/TravelPlanG4/blob/main/37.png?raw=true', desc:'Browse night markets for last-minute souvenirs.' },
+    ]
+  }
+];
+
+/* ══════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════ */
+let state = {
+  playerName: '',
+  country: null,
+  stageIdx: 0,
+  itinerary: [],          // { stage, activity }
+  quizAnswered: false
+};
+
+/* ══════════════════════════════════════════════════
+   SCREEN NAVIGATION
+   ══════════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active', 'exit-up');
+    s.classList.add('exit-up');
+  });
+  const next = document.getElementById(id);
+  setTimeout(() => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('exit-up'));
+    next.classList.add('active');
+    next.scrollTop = 0;
+  }, 60);
+}
+
+/* ══════════════════════════════════════════════════
+   TIME-OF-DAY THEME
+   ══════════════════════════════════════════════════ */
+function applyTheme(stage) {
+  const root = document.documentElement;
+  root.style.setProperty('--sky-a', stage.skyA);
+  root.style.setProperty('--sky-b', stage.skyB);
+  // Darken text for bright daytime themes
+  const dark = stage.id <= 4;
+  root.style.setProperty('--text-main', dark ? '#1e293b' : '#f8fafc');
+}
+
+/* ══════════════════════════════════════════════════
+   PROGRESS BAR
+   ══════════════════════════════════════════════════ */
+function buildProgressBar() {
+  const container = document.getElementById('pb-stages');
+  container.innerHTML = '';
+  STAGES.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'pb-stage';
+    div.id = `pb-stage-${i}`;
+    div.innerHTML = `
+      <div class="pb-stage-icon">${s.emoji}</div>
+      <div class="pb-stage-label">${s.label}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function updateProgressBar() {
+  document.getElementById('pb-name-label').textContent = state.playerName || 'Traveller';
+  document.getElementById('pb-country-label').textContent =
+    state.country ? `${state.country.flag} ${state.country.name}` : '✈️ My Dream Vacation';
+
+  STAGES.forEach((_, i) => {
+    const el = document.getElementById(`pb-stage-${i}`);
+    el.className = 'pb-stage';
+    if (i < state.stageIdx) el.classList.add('done');
+    else if (i === state.stageIdx) el.classList.add('active');
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   SVG ANALOGUE CLOCK
+   ══════════════════════════════════════════════════ */
+function drawClock(svgEl, h, m, size = 200) {
+  const cx = size / 2, cy = size / 2, r = size / 2;
+
+  // Normalize hours
+  const hNorm = h % 12 + m / 60;
+  const mNorm = m;
+
+  const toRad = deg => (deg - 90) * Math.PI / 180;
+  const hAngle = toRad(hNorm * 30);
+  const mAngle = toRad(mNorm * 6);
+
+  const hLen = r * 0.50, mLen = r * 0.70;
+  const hX = cx + Math.cos(hAngle) * hLen;
+  const hY = cy + Math.sin(hAngle) * hLen;
+  const mX = cx + Math.cos(mAngle) * mLen;
+  const mY = cy + Math.sin(mAngle) * mLen;
+
+  // Build hour markers
+  let markers = '';
+  for (let i = 1; i <= 12; i++) {
+    const angle = (i * 30 - 90) * Math.PI / 180;
+    const isMain = i % 3 === 0;
+    const iR = r * 0.82;
+    const oR = r * (isMain ? 0.93 : 0.88);
+    const x1 = cx + Math.cos(angle) * iR;
+    const y1 = cy + Math.sin(angle) * iR;
+    const x2 = cx + Math.cos(angle) * oR;
+    const y2 = cy + Math.sin(angle) * oR;
+    markers += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
+      stroke="${isMain ? '#334155' : '#94a3b8'}" stroke-width="${isMain ? 3 : 1.5}" stroke-linecap="round"/>`;
+  }
+
+  // Hour numbers (12, 3, 6, 9)
+  let nums = '';
+  [12,3,6,9].forEach(n => {
+    const angle = (n * 30 - 90) * Math.PI / 180;
+    const nr = r * 0.70;
+    const nx = cx + Math.cos(angle) * nr;
+    const ny = cy + Math.sin(angle) * nr;
+    nums += `<text x="${nx.toFixed(1)}" y="${ny.toFixed(1)}" text-anchor="middle" dominant-baseline="central"
+      font-family="Baloo 2, cursive" font-size="${r*0.16}" font-weight="800" fill="#1e293b">${n}</text>`;
+  });
+
+  svgEl.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svgEl.innerHTML = `
+    <!-- Clock face -->
+    <circle cx="${cx}" cy="${cy}" r="${r*0.96}" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <circle cx="${cx}" cy="${cy}" r="${r*0.92}" fill="white" stroke="#f1f5f9" stroke-width="1.5"/>
+    <!-- Tick marks -->
+    ${markers}
+    <!-- Hour numbers -->
+    ${nums}
+    <!-- Hour hand -->
+    <line x1="${cx}" y1="${cy}" x2="${hX.toFixed(1)}" y2="${hY.toFixed(1)}"
+      stroke="#1e293b" stroke-width="${r*0.058}" stroke-linecap="round"/>
+    <!-- Minute hand -->
+    <line x1="${cx}" y1="${cy}" x2="${mX.toFixed(1)}" y2="${mY.toFixed(1)}"
+      stroke="#f97316" stroke-width="${r*0.038}" stroke-linecap="round"/>
+    <!-- Centre dot -->
+    <circle cx="${cx}" cy="${cy}" r="${r*0.06}" fill="#f97316"/>
+    <circle cx="${cx}" cy="${cy}" r="${r*0.03}" fill="white"/>
+  `;
+}
+
+function drawMiniClock(svgEl, h, m) {
+  drawClock(svgEl, h, m, 56);
+}
+
+/* ══════════════════════════════════════════════════
+   COUNTRY GRID
+   ══════════════════════════════════════════════════ */
+function buildCountryGrid() {
+  const grid = document.getElementById('country-grid');
+  grid.innerHTML = '';
+  COUNTRIES.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'country-card';
+    card.dataset.id = c.id;
+    card.innerHTML = `
+      <div class="country-img-wrap">
+        <img src="${c.img}" alt="${c.name}">
+      </div>
+      <span class="country-name">${c.flag} ${c.name}</span>
+      <button class="country-select-btn" onclick="selectCountry('${c.id}')">
+        Select
+      </button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function selectCountry(id) {
+  state.country = COUNTRIES.find(c => c.id === id);
+  document.querySelectorAll('.country-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.id === id);
+  });
+  document.getElementById('btn-go-quiz').disabled = false;
+}
+
+/* ══════════════════════════════════════════════════
+   QUIZ SETUP
+   ══════════════════════════════════════════════════ */
+function buildQuizScreen() {
+  const stage = STAGES[state.stageIdx];
+  applyTheme(stage);
+  updateProgressBar();
+
+  document.getElementById('quiz-stage-label').textContent =
+    `Stage ${stage.id} of 7 — ${stage.label}`;
+  document.getElementById('quiz-prompt').textContent = stage.prompt;
+
+  // Draw analogue clock
+  const svg = document.getElementById('clock-svg');
+  drawClock(svg, stage.time.h, stage.time.m, 200);
+
+  // Try to show real image if it exists
+  const img = document.getElementById('clock-img');
+  const imgSrc = `./images/clock_${String(stage.time.h).padStart(2,'0')}${String(stage.time.m).padStart(2,'0')}.png`;
+  img.src = imgSrc;
+  img.style.display = 'none';
+  img.onload = () => { img.style.display = 'block'; svg.style.display = 'none'; };
+  img.onerror = () => { img.style.display = 'none'; svg.style.display = ''; };
+
+  // Build answer options
+  const options = buildTimeOptions(stage.time);
+  const container = document.getElementById('time-options');
+  container.innerHTML = '';
+  state.quizAnswered = false;
+
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'time-btn';
+    btn.textContent = opt.label;
+    btn.dataset.correct = opt.correct ? '1' : '0';
+    btn.addEventListener('click', () => handleTimeAnswer(btn, stage));
+    container.appendChild(btn);
+  });
+}
+
+function buildTimeOptions(correct) {
+  const opts = [{ label: formatTime(correct.h, correct.m), correct: true }];
+  const distractors = generateDistractors(correct.h, correct.m, 3);
+  distractors.forEach(d => opts.push({ label: formatTime(d.h, d.m), correct: false }));
+  return shuffle(opts);
+}
+
+function generateDistractors(h, m, count) {
+  const offsets = [30, 60, 90, -30, -60, 15, -15, 45];
+  const used = new Set([`${h}:${m}`]);
+  const result = [];
+  const shuffled = shuffle(offsets);
+
+  for (const off of shuffled) {
+    if (result.length >= count) break;
+    let total = h * 60 + m + off;
+    total = ((total % 720) + 720) % 720; // keep in 0-12h range
+    const nh = Math.floor(total / 60) % 12 || 12;
+    const nm = total % 60;
+    const key = `${nh}:${nm}`;
+    if (!used.has(key)) { used.add(key); result.push({ h: nh, m: nm }); }
+  }
+  return result;
+}
+
+function formatTime(h, m) {
+  const hh = h % 12 || 12;
+  const mm = String(m).padStart(2, '0');
+  const ampm = h < 12 || h === 24 ? 'AM' : 'PM';
+  return `${hh}:${mm} ${ampm}`;
+}
+
+function handleTimeAnswer(btn, stage) {
+  if (state.quizAnswered) return;
+  state.quizAnswered = true;
+
+  const correct = btn.dataset.correct === '1';
+  btn.classList.add(correct ? 'correct' : 'wrong');
+
+  if (!correct) {
+    // Show correct
+    document.querySelectorAll('.time-btn').forEach(b => {
+      if (b.dataset.correct === '1') b.classList.add('correct');
+    });
+    const card = document.getElementById('clock-card');
+    card.classList.add('shake');
+    setTimeout(() => card.classList.remove('shake'), 600);
+    // Allow retry after a moment
+    setTimeout(() => { state.quizAnswered = false; }, 900);
+    return;
+  }
+
+  // ✅ Correct!
+  showBurst('✅');
+  spawnConfetti(24);
+  setTimeout(() => {
+    hideBurst();
+    buildActivityScreen();
+    showScreen('s-activity');
+  }, 1100);
+}
+
+/* ══════════════════════════════════════════════════
+   ACTIVITY SCREEN
+   ══════════════════════════════════════════════════ */
+let selectedActivity = null;
+
+function buildActivityScreen() {
+  const stage = STAGES[state.stageIdx];
+  document.getElementById('act-stage-label').textContent =
+    `Stage ${stage.id} of 7 — ${stage.label}`;
+  document.getElementById('act-prompt').textContent = stage.actPrompt;
+
+  const container = document.getElementById('activity-cards');
+  container.innerHTML = '';
+  selectedActivity = null;
+  document.getElementById('btn-confirm-act').disabled = true;
+
+  stage.activities.forEach(act => {
+    const card = document.createElement('div');
+    card.className = 'activity-card';
+    card.innerHTML = `
+      <div class="act-img-wrap">
+        <img src="${act.img}" alt="${act.name}">
+      </div>
+      <span class="act-name">${act.name}</span>
+      <button class="act-select-btn">Select</button>
+    `;
+    card.addEventListener('click', () => selectActivity(act, card));
+    container.appendChild(card);
+  });
+}
+
+function selectActivity(act, card) {
+  selectedActivity = act;
+  document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  document.getElementById('btn-confirm-act').disabled = false;
+}
+
+function confirmActivity() {
+  if (!selectedActivity) return;
+  const stage = STAGES[state.stageIdx];
+  state.itinerary.push({ stage, activity: selectedActivity });
+  spawnConfetti(12);
+
+  state.stageIdx++;
+
+  if (state.stageIdx < STAGES.length) {
+    buildQuizScreen();
+    showScreen('s-quiz');
+  } else {
+    buildPostcard();
+    showScreen('s-postcard');
+    document.getElementById('progress-bar').style.display = 'none';
+    spawnConfetti(50);
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   POSTCARD
+   ══════════════════════════════════════════════════ */
+function buildPostcard() {
+  document.getElementById('pc-name').textContent =
+    `${state.playerName}'s Adventure!`;
+  document.getElementById('pc-country').textContent =
+    `${state.country.flag} ${state.country.name}`;
+
+  const body = document.getElementById('pc-itinerary');
+  body.innerHTML = '';
+
+  state.itinerary.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'itinerary-row';
+    row.style.animationDelay = `${i * 0.12}s`;
+
+    const svgId = `mini-clock-${i}`;
+    row.innerHTML = `
+      <div class="itinerary-clock">
+        <svg id="${svgId}" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="itinerary-time">${entry.stage.timeStr}</div>
+      <div class="itinerary-sep">→</div>
+      <div class="itinerary-act-icon">
+        <span>${entry.activity.emoji}</span>
+        <img src="${entry.activity.img}" alt="${entry.activity.name}"
+             style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1"
+             onerror="this.style.display='none'">
+      </div>
+      <div class="itinerary-act-info">
+        <div class="itinerary-act-name">${entry.activity.name}</div>
+        <div class="itinerary-act-desc">${entry.activity.desc}</div>
+      </div>
+    `;
+    body.appendChild(row);
+
+    // Draw mini clock after DOM insertion
+    requestAnimationFrame(() => {
+      const svg = document.getElementById(svgId);
+      if (svg) drawClock(svg, entry.stage.time.h, entry.stage.time.m, 56);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   VISUAL EFFECTS
+   ══════════════════════════════════════════════════ */
+function showBurst(icon) {
+  const el = document.getElementById('success-burst');
+  document.getElementById('burst-icon').textContent = icon;
+  el.classList.remove('hidden', 'visible');
+  void el.offsetWidth;
+  el.classList.add('visible');
+  // Auto-hide after animation completes
+  clearTimeout(window._burstTimer);
+  window._burstTimer = setTimeout(() => hideBurst(), 1050);
+}
+function hideBurst() {
+  const el = document.getElementById('success-burst');
+  el.classList.remove('visible');
+}
+
+function spawnConfetti(n) {
+  const cols = ['#f97316','#f59e0b','#10b981','#6366f1','#ec4899','#0ea5e9','#84cc16'];
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const size = 8 + Math.random() * 8;
+    el.style.cssText = `
+      left:${Math.random()*100}vw; top:${Math.random()*40}vh;
+      width:${size}px; height:${size*1.4}px;
+      background:${cols[Math.floor(Math.random()*cols.length)]};
+      --spin:${(Math.random()-.5)*720}deg;
+      --drift:${(Math.random()-.5)*200}px;
+      animation-duration:${1.2+Math.random()*.8}s;
+      animation-delay:${Math.random()*.4}s;
+      border-radius:${Math.random()>0.5 ? '50%' : '2px'};
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2400);
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   UTIL
+   ══════════════════════════════════════════════════ */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ══════════════════════════════════════════════════
+   RESET
+   ══════════════════════════════════════════════════ */
+function resetGame() {
+  state = { playerName:'', country:null, stageIdx:0, itinerary:[], quizAnswered:false };
+  document.getElementById('student-name').value = '';
+  document.getElementById('btn-begin').disabled = true;
+  document.getElementById('progress-bar').style.display = '';
+  document.getElementById('progress-bar').style.display = 'none';
+  const root = document.documentElement;
+  root.style.setProperty('--sky-a', '#FFF9C4');
+  root.style.setProperty('--sky-b', '#B3E5FC');
+  showScreen('s-welcome');
+}
+
+/* ══════════════════════════════════════════════════
+   EVENT LISTENERS & INIT
+   ══════════════════════════════════════════════════ */
+document.getElementById('student-name').addEventListener('input', e => {
+  state.playerName = e.target.value.trim();
+  document.getElementById('btn-begin').disabled = state.playerName.length === 0;
+});
+
+document.getElementById('btn-begin').addEventListener('click', () => {
+  buildCountryGrid();
+  showScreen('s-country');
+});
+
+document.getElementById('btn-go-quiz').addEventListener('click', () => {
+  if (!state.country) return;
+  document.getElementById('progress-bar').style.display = 'flex';
+  buildProgressBar();
+  updateProgressBar();
+  state.stageIdx = 0;
+  buildQuizScreen();
+  showScreen('s-quiz');
+});
+
+document.getElementById('btn-confirm-act').addEventListener('click', confirmActivity);
+
+// Keyboard shortcut for quicker testing (Enter to proceed if btn is active)
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const screens = ['s-welcome','s-country'];
+    screens.forEach(id => {
+      const s = document.getElementById(id);
+      if (s.classList.contains('active')) {
+        const btn = s.querySelector('.btn-primary:not(:disabled)');
+        if (btn) btn.click();
+      }
+    });
+  }
+});
+
+// Initial theme
+document.documentElement.style.setProperty('--sky-a', '#FFF9C4');
+document.documentElement.style.setProperty('--sky-b', '#B3E5FC');
+</script>
+</body>
+</html>
